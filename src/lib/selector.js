@@ -38,20 +38,33 @@
  * ```
  */
 
- export default function reduce(selector) {
+function reduce(selector) {
   const operationalMapper = {
-    set: _set
+    set: set,
+    append: append
   };
   
-  function _set(value) {
-    return value
+  function set(oldValue, newValue) {
+    return newValue;
+  }
+
+  function append(oldList, value) {
+    // if value is null or undefined return the same original list
+    if (
+      value === undefined ||
+      value === null ||
+      !Array.isArray(oldList)
+    ) {
+      return oldList;
+    }
+    return oldList.concat(value);
   }
 
   let toUpdate = {};
   return new (class {
     set(value) {
       if (typeof value === 'object' && value !== null ){
-        let updatedObject = Object.keys(value)
+        const updatedObject = Object.keys(value)
           .reduce((acc, key) => {
             return {...acc, [key]: {
               operation: 'set',
@@ -71,6 +84,36 @@
           }
         }
       }
+      return this;
+    }
+
+    append(value) {
+      if(
+        typeof value === 'object' &&
+        value !== null
+      ) {
+        const updatedObject =  Object.keys(value)
+          .reduce((acc, key) => {
+            return {...acc, [key]: {
+              operation: 'append',
+              value: value[key]
+            }}
+          }, {});
+        
+        toUpdate = {
+          ...toUpdate,
+          ...updatedObject
+        }
+      } else {
+        toUpdate = {
+          ...toUpdate,
+          default: {
+            operation: 'append',
+            value: value,
+          }
+        }
+      }
+      return this;
     }
 
     _apply(originalObject, selector) {
@@ -86,7 +129,8 @@
         if (selector === '#') {
           if (Object.keys(toUpdate).indexOf('default') !== -1) {
             const updater = toUpdate.default;
-            return operationMapper[updater.operation](originalObject);
+            console.log(updater);
+            return operationalMapper[updater.operation](originalObject, updater.value);
           }
           return originalObject;
         }
@@ -112,3 +156,5 @@
 
    })();
  }
+
+ module.exports = reduce;
